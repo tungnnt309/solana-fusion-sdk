@@ -1,12 +1,16 @@
 {
-  "extends": "@1inch/tsconfig",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "lib": [
-      "ES2021"
-    ],
-    "target": "ES2021",
-  },
-  "include": ["./src"]
+    "extends": "@1inch/tsconfig",
+    "compilerOptions": {
+        "target": "ES2024",
+        "lib": ["ES2024"],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "baseUrl": "./src"
+    },
+    "include": ["./src/**/*.ts", "./src/**/*.json"]
 }

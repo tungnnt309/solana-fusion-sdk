@@ -1,5 +1,5 @@
-# Lib
-Lib desc
+# Solana Fusion SDK
+
 
 ## Installation
 
@@ -7,7 +7,7 @@ Add to `package.json`
 ```json
 {
   "dependencies": {
-    "@1inch/lib": "https://github.com/1inch/lib#latest"
+    "@1inch/solana-fusion-sdk": "https://github.com/1inch/solana-fusion-sdk#latest"
   }
 }
 ```
