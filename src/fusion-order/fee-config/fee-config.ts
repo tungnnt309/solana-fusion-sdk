@@ -74,4 +74,8 @@ export class FeeConfig {
     static onlyIntegrator(integratorDstAta: Address, fee: Bps): FeeConfig {
         return new FeeConfig(null, integratorDstAta, Bps.ZERO, fee, Bps.ZERO)
     }
+
+    public isZero(): boolean {
+        return this.protocolDstAta == null && this.integratorDstAta == null
+    }
 }

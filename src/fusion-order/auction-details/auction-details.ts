@@ -35,4 +35,13 @@ export class AuctionDetails {
         assertUInteger(this.duration)
         assertUInteger(this.initialRateBump, UINT_16_MAX)
     }
+
+    static noAuction(startTime: number, duration: number): AuctionDetails {
+        return new AuctionDetails({
+            startTime,
+            duration,
+            initialRateBump: 0,
+            points: []
+        })
+    }
 }

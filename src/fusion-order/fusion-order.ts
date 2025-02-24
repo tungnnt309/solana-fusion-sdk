@@ -1,13 +1,17 @@
-import {BorshCoder, BN} from '@coral-xyz/anchor'
+import {BN} from '@coral-xyz/anchor'
+import * as borsh from 'borsh'
 import * as crypto from 'node:crypto'
+import {Buffer} from 'buffer'
 import {AuctionDetails} from './auction-details'
 
 import {FeeConfig} from './fee-config'
 import {OrderInfoData} from './types'
-import {Address, AddressLike, Bps} from '../domains'
+import {Address, AddressLike} from '../domains'
 import {AmountCalculator, AuctionCalculator} from '../amount-calculator'
 import {FeeCalculator} from '../amount-calculator/fee-calculator/fee-calculator'
-import {IDL} from '../idl/fusion-swap'
+import {FusionSwapContract} from '../contracts'
+import {getPda} from '../utils/addresses/pda'
+import {getAta} from '../utils/addresses/ata'
 
 export class FusionOrder {
     private static DefaultExtra = {
@@ -68,19 +72,23 @@ export class FusionOrder {
         }
     }
 
-    get takerAsset(): Address {
+    get fees(): FeeConfig | null {
+        return this.orderConfig.fees.isZero() ? null : this.orderConfig.fees
+    }
+
+    get dstMint(): Address {
         return this.orderConfig.dstMint
     }
 
-    get makerAsset(): Address {
+    get srcMint(): Address {
         return this.orderConfig.srcMint
     }
 
-    get takingAmount(): bigint {
+    get dstAmount(): bigint {
         return this.orderConfig.minDstAmount
     }
 
-    get makingAmount(): bigint {
+    get srcAmount(): bigint {
         return this.orderConfig.srcAmount
     }
 
@@ -118,104 +126,85 @@ export class FusionOrder {
         return this.orderConfig.id
     }
 
-    static decode(
-        str: string,
-        encoding: 'base64' | 'hex' = 'base64'
-    ): FusionOrder {
-        const coder = new BorshCoder(IDL)
+    public build(): OrderConfig {
+        const {fees} = this.orderConfig
 
-        const config = coder.types.decode<BorchOrderConfig>(
-            'orderConfig',
-            Buffer.from(str, encoding)
-        )
+        const reduced = this.asReduced()
 
-        const {dutchAuctionData: auction, fee: fees} = config
-
-        return new FusionOrder(
-            {
-                srcMint: Address.fromBuffer(config.srcMint.toBuffer()),
-                dstMint: Address.fromBuffer(config.dstMint.toBuffer()),
-                srcAmount: BigInt(config.srcAmount.toString()),
-                minDstAmount: BigInt(config.minDstAmount.toString()),
-                estimatedDstAmount: BigInt(
-                    config.estimatedDstAmount.toString()
-                ),
-                receiver: Address.fromBuffer(config.receiver.toBuffer()),
-                id: config.id
+        return {
+            ...reduced,
+            receiver: this.orderConfig.receiver.toBuffer(),
+            fee: {
+                ...reduced.fee,
+                protocolDstAta: fees.protocolDstAta?.toBuffer() || null,
+                integratorDstAta: fees.integratorDstAta?.toBuffer() || null
             },
-            new AuctionDetails({
-                duration: auction.duration,
-                initialRateBump: auction.initialRateBump,
-                startTime: auction.startTime,
-                points: auction.pointsAndTimeDeltas.map((p) => ({
-                    delay: p.timeDelta,
-                    coefficient: p.rateBump
-                }))
-            }),
-            {
-                unwrapNative: config.nativeDstAsset,
-                fees: new FeeConfig(
-                    fees.protocolDstAta
-                        ? Address.fromBuffer(fees.protocolDstAta?.toBuffer())
-                        : null,
-                    fees.integratorDstAta
-                        ? Address.fromBuffer(fees.integratorDstAta?.toBuffer())
-                        : null,
-                    Bps.fromFraction(fees.protocolFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fees.integratorFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fees.surplusPercentage, FeeConfig.BASE_1E2)
-                )
-            }
-        )
+            srcMint: this.orderConfig.srcMint.toBuffer(),
+            dstMint: this.orderConfig.dstMint.toBuffer()
+        }
     }
 
-    public encode(encoding: 'hex' | 'base64' = 'base64'): string {
-        const coder = new BorshCoder(IDL)
-
+    public asReduced(): ReducedOrderConfig {
         const {fees, dutchAuctionData: auction} = this.orderConfig
 
-        return coder.types
-            .encode<BorchOrderConfig>('orderConfig', {
-                id: this.orderConfig.id,
-                srcAmount: new BN(this.orderConfig.srcAmount),
-                minDstAmount: new BN(this.orderConfig.minDstAmount),
-                estimatedDstAmount: new BN(this.orderConfig.estimatedDstAmount),
-                expirationTime: this.orderConfig.expirationTime,
-                nativeDstAsset: this.orderConfig.nativeDstAsset,
-                receiver: this.orderConfig.receiver,
-                fee: {
-                    protocolDstAta: fees.protocolDstAta,
-                    integratorDstAta: fees.integratorDstAta,
-                    protocolFee: fees.protocolFee.toFraction(
-                        FeeConfig.BASE_1E5
-                    ),
-                    integratorFee: fees.integratorFee.toFraction(
-                        FeeConfig.BASE_1E5
-                    ),
-                    surplusPercentage: fees.surplusShare.toFraction(
-                        FeeConfig.BASE_1E2
-                    )
-                },
-                dutchAuctionData: {
-                    startTime: auction.startTime,
-                    duration: auction.duration,
-                    initialRateBump: auction.initialRateBump,
-                    pointsAndTimeDeltas: auction.points.map((p) => ({
-                        rateBump: p.coefficient,
-                        timeDelta: p.delay
-                    }))
-                },
-                srcMint: this.orderConfig.srcMint,
-                dstMint: this.orderConfig.dstMint
-            })
-            .toString(encoding)
+        return {
+            id: this.orderConfig.id,
+            srcAmount: new BN(this.orderConfig.srcAmount),
+            minDstAmount: new BN(this.orderConfig.minDstAmount),
+            estimatedDstAmount: new BN(this.orderConfig.estimatedDstAmount),
+            expirationTime: this.orderConfig.expirationTime,
+            nativeDstAsset: this.orderConfig.nativeDstAsset,
+            fee: {
+                protocolFee: fees.protocolFee.toFraction(FeeConfig.BASE_1E5),
+                integratorFee: fees.integratorFee.toFraction(
+                    FeeConfig.BASE_1E5
+                ),
+                surplusPercentage: fees.surplusShare.toFraction(
+                    FeeConfig.BASE_1E2
+                )
+            },
+            dutchAuctionData: {
+                startTime: auction.startTime,
+                duration: auction.duration,
+                initialRateBump: auction.initialRateBump,
+                pointsAndTimeDeltas: auction.points.map((p) => ({
+                    rateBump: p.coefficient,
+                    timeDelta: p.delay
+                }))
+            }
+        }
     }
 
     /**
-     * Returns orderHash as hex string (without 0x)
+     * Returns orderHash
      */
-    public getOrderHash(): string {
-        return crypto.createHash('sha256').update(this.encode()).digest('hex')
+    public getOrderHash(): Buffer {
+        const encoded = borsh.serialize(OrderConfigSchema, this.build())
+
+        return crypto.createHash('sha256').update(encoded).digest()
+    }
+
+    /**
+     * Returns escrow ata for src token
+     */
+    public getEscrow(
+        maker: AddressLike,
+        /**
+         * Src token program id - TOKEN_PROGRAM_ID or TOKEN_2020_PROGRAM_ID
+         */
+        srcTokenProgram: Address = Address.TOKEN_PROGRAM_ID,
+        /**
+         * FusionSwap program id
+         */
+        programId: Address = FusionSwapContract.ADDRESS
+    ): Address {
+        const escrow = getPda(programId, [
+            new TextEncoder().encode('escrow'),
+            maker.toBuffer(),
+            this.getOrderHash()
+        ])
+
+        return getAta(escrow, this.srcMint, srcTokenProgram)
     }
 
     /**
@@ -227,8 +216,8 @@ export class FusionOrder {
     public calcTakingAmount(makingAmount: bigint, time: number): bigint {
         const takingAmount = AmountCalculator.calcTakingAmount(
             makingAmount,
-            this.makingAmount,
-            this.takingAmount
+            this.srcAmount,
+            this.dstAmount
         )
 
         return this.getCalculator().getRequiredTakingAmount(takingAmount, time)
@@ -372,17 +361,14 @@ export class FusionOrder {
     }
 }
 
-type BorchOrderConfig = {
+type ReducedOrderConfig = {
     id: number
     srcAmount: BN
     minDstAmount: BN
     estimatedDstAmount: BN
     expirationTime: number
     nativeDstAsset: boolean
-    receiver: AddressLike
     fee: {
-        protocolDstAta: AddressLike | null
-        integratorDstAta: AddressLike | null
         protocolFee: number
         integratorFee: number
         surplusPercentage: number
@@ -396,6 +382,54 @@ type BorchOrderConfig = {
             timeDelta: number
         }[]
     }
-    srcMint: AddressLike
-    dstMint: AddressLike
+}
+
+type OrderConfig = ReducedOrderConfig & {
+    receiver: Buffer
+    srcMint: Buffer
+    dstMint: Buffer
+    fee: ReducedOrderConfig['fee'] & {
+        protocolDstAta: Buffer | null
+        integratorDstAta: Buffer | null
+    }
+}
+
+const OrderConfigSchema = {
+    struct: {
+        id: 'u32',
+        srcAmount: 'u64',
+        minDstAmount: 'u64',
+        estimatedDstAmount: 'u64',
+        expirationTime: 'u32',
+        nativeDstAsset: 'bool',
+        receiver: {array: {type: 'u8', len: 32}},
+        fee: {
+            struct: {
+                protocolDstAta: {option: {array: {type: 'u8', len: 32}}},
+                integratorDstAta: {option: {array: {type: 'u8', len: 32}}},
+                protocolFee: 'u16',
+                integratorFee: 'u16',
+                surplusPercentage: 'u8'
+            }
+        },
+        dutchAuctionData: {
+            struct: {
+                startTime: 'u32',
+                duration: 'u32',
+                initialRateBump: 'u16',
+                pointsAndTimeDeltas: {
+                    array: {
+                        type: {
+                            struct: {
+                                rateBump: 'u16',
+                                timeDelta: 'u16'
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        srcMint: {array: {type: 'u8', len: 32}},
+        dstMint: {array: {type: 'u8', len: 32}}
+    }
 }

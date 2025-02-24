@@ -1,6 +1,7 @@
 import {FusionOrder} from './fusion-order'
 import {AuctionDetails} from './auction-details'
 import {Address} from '../domains'
+import {now} from '../utils/time/now'
 
 describe('Fusion Order', () => {
     it('should create fusion order', () => {
@@ -16,17 +17,7 @@ describe('Fusion Order', () => {
                 id: 1,
                 receiver: Address.fromBigInt(1n)
             },
-            new AuctionDetails({
-                duration: 180,
-                startTime: 1673548149,
-                initialRateBump: 50000,
-                points: [
-                    {
-                        coefficient: 20000,
-                        delay: 12
-                    }
-                ]
-            })
+            AuctionDetails.noAuction(now(), 180)
         )
 
         expect(FusionOrder.decode(order.encode())).toEqual(order)
