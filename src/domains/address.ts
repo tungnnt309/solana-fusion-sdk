@@ -89,6 +89,10 @@ export class Address implements AddressLike {
         return Address.fromBuffer(buffer)
     }
 
+    toString(): string {
+        return bs58.encode(this.buf)
+    }
+
     public toBuffer(): Buffer {
         return Buffer.from(this.buf)
     }

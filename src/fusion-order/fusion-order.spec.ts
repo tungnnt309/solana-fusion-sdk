@@ -1,7 +1,7 @@
 import {FusionOrder} from './fusion-order'
 import {AuctionDetails} from './auction-details'
 import {Address} from '../domains'
-import {now} from '../utils/time/now'
+import {now} from '../utils'
 import {FusionSwapContract} from '../contracts'
 
 describe('Fusion Order', () => {
@@ -21,12 +21,21 @@ describe('Fusion Order', () => {
             AuctionDetails.noAuction(now(), 180)
         )
 
-        const ix = FusionSwapContract.default().create(order, {
+        const contract = FusionSwapContract.default()
+        const createIx = contract.create(order, {
             maker: Address.fromBigInt(1n),
             srcTokenProgram: Address.TOKEN_PROGRAM_ID
         })
 
-        expect(FusionOrder.fromCreateInstruction(ix)).toEqual(order)
+        const fillIx = contract.fill(order, 100n, {
+            maker: Address.fromBigInt(1n),
+            taker: Address.fromBigInt(2n),
+            srcTokenProgram: Address.TOKEN_PROGRAM_ID,
+            dstTokenProgram: Address.TOKEN_PROGRAM_ID
+        })
+
+        expect(FusionOrder.fromCreateInstruction(createIx)).toEqual(order)
+        expect(FusionOrder.fromFillInstruction(fillIx)).toEqual(order)
     })
     // it('should create fusion order with fees', () => {
     //     const extensionContract = new Address(

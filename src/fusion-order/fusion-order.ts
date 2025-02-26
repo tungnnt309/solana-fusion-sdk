@@ -202,6 +202,73 @@ export class FusionOrder {
         )
     }
 
+    static fromFillInstruction(ix: TransactionInstruction): FusionOrder {
+        const _ix = new BorshCoder(IDL).instruction.decode(ix.data)
+
+        if (!_ix || _ix.name !== 'fill') {
+            throw new Error('invalid instruction')
+        }
+
+        assert('reducedOrder' in _ix.data)
+
+        const reducedConfig = _ix.data.reducedOrder as ReducedOrderConfig
+
+        const srcMint = ix.accounts[4]
+        const dstMint = ix.accounts[5]
+        const receiverAccMeta = ix.accounts[3]
+        const protocolDstAta = ix.accounts[9]
+        const integratorDstAta = ix.accounts[10]
+
+        assert(receiverAccMeta)
+        assert(srcMint)
+        assert(dstMint)
+        assert(protocolDstAta)
+        assert(integratorDstAta)
+
+        const {dutchAuctionData: auction, fee} = reducedConfig
+
+        const orderExpirationDelay =
+            reducedConfig.expirationTime - auction.duration - auction.startTime
+
+        return new FusionOrder(
+            {
+                srcMint: srcMint.pubkey,
+                dstMint: dstMint.pubkey,
+                id: reducedConfig.id,
+                srcAmount: BigInt(reducedConfig.srcAmount.toString()),
+                minDstAmount: BigInt(reducedConfig.minDstAmount.toString()),
+                estimatedDstAmount: BigInt(
+                    reducedConfig.estimatedDstAmount.toString()
+                ),
+                receiver: receiverAccMeta.pubkey
+            },
+            new AuctionDetails({
+                startTime: auction.startTime,
+                duration: auction.duration,
+                initialRateBump: auction.initialRateBump,
+                points: auction.pointsAndTimeDeltas.map((p) => ({
+                    coefficient: p.rateBump,
+                    delay: p.timeDelta
+                }))
+            }),
+            {
+                unwrapNative: reducedConfig.nativeDstAsset,
+                orderExpirationDelay,
+                fees: new FeeConfig(
+                    protocolDstAta.pubkey.equal(ix.programId)
+                        ? null
+                        : protocolDstAta.pubkey,
+                    integratorDstAta.pubkey.equal(ix.programId)
+                        ? null
+                        : integratorDstAta.pubkey,
+                    Bps.fromFraction(fee.protocolFee, FeeConfig.BASE_1E5),
+                    Bps.fromFraction(fee.integratorFee, FeeConfig.BASE_1E5),
+                    Bps.fromFraction(fee.surplusPercentage, FeeConfig.BASE_1E2)
+                )
+            }
+        )
+    }
+
     public build(): OrderConfig {
         const {fees} = this.orderConfig
 
