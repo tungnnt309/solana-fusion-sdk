@@ -10,10 +10,8 @@ import {OrderInfoData} from './types'
 import {Address, AddressLike, Bps} from '../domains'
 import {AmountCalculator, AuctionCalculator} from '../amount-calculator'
 import {FeeCalculator} from '../amount-calculator/fee-calculator/fee-calculator'
-import {FusionSwapContract} from '../contracts'
-import {getPda} from '../utils/addresses/pda'
-import {getAta} from '../utils/addresses/ata'
-import {TransactionInstruction} from '../contracts/transaction-instruction'
+import {FusionSwapContract, TransactionInstruction} from '../contracts'
+import {getPda, getAta} from '../utils/'
 import {IDL} from '../idl/fusion-swap'
 
 export class FusionOrder {
@@ -154,11 +152,11 @@ export class FusionOrder {
         const protocolDstAta = ix.accounts[7]
         const integratorDstAta = ix.accounts[8]
 
-        expect(receiverAccMeta)
-        expect(srcMint)
-        expect(dstMint)
-        expect(protocolDstAta)
-        expect(integratorDstAta)
+        assert(receiverAccMeta)
+        assert(srcMint)
+        assert(dstMint)
+        assert(protocolDstAta)
+        assert(integratorDstAta)
 
         const {dutchAuctionData: auction, fee} = reducedConfig
 
