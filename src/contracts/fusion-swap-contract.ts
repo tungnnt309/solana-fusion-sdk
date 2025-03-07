@@ -8,7 +8,7 @@ import {IDL} from '../idl/fusion-swap'
 import {getPda} from '../utils/addresses/pda'
 
 export class FusionSwapContract {
-    static ADDRESS = new Address('9hbsrgqQUYBPdAiriyn5A7cr3zBzN3EmeXN6mJLyizHh')
+    static ADDRESS = new Address('9CnwB8RDNtRzRcxvkNqwgatRDENBCh2f56HgJLPStn8S')
 
     private readonly coder = new BorshCoder(IDL)
 
@@ -35,47 +35,31 @@ export class FusionSwapContract {
             this.programId,
             [
                 {
-                    // maker
-                    pubkey: accounts.maker,
-                    isSigner: true,
-                    isWritable: true
-                },
-                {
-                    // src_mint
-                    pubkey: order.srcMint,
+                    // 0. system_program
+                    pubkey: Address.SYSTEM_PROGRAM_ID,
                     isWritable: false,
                     isSigner: false
                 },
                 {
-                    // dst_mint
-                    pubkey: order.dstMint,
-                    isWritable: false,
-                    isSigner: false
-                },
-                {
-                    // maker_src_ata
-                    pubkey: getAta(
-                        accounts.maker,
-                        order.srcMint,
-                        accounts.srcTokenProgram
-                    ),
-                    isWritable: true,
-                    isSigner: false
-                },
-                {
-                    // maker_receiver
-                    pubkey: order.receiver,
-                    isWritable: false,
-                    isSigner: false
-                },
-                {
-                    // escrow
+                    // 1. escrow
                     pubkey: escrow,
                     isWritable: false,
                     isSigner: false
                 },
                 {
-                    // escrow_src_ata
+                    // 2. src_mint
+                    pubkey: order.srcMint,
+                    isWritable: false,
+                    isSigner: false
+                },
+                {
+                    // 3. src_token_program
+                    pubkey: accounts.srcTokenProgram,
+                    isWritable: false,
+                    isSigner: false
+                },
+                {
+                    // 4. escrow_src_ata
                     pubkey: getAta(
                         escrow,
                         order.srcMint,
@@ -85,32 +69,48 @@ export class FusionSwapContract {
                     isSigner: false
                 },
                 {
-                    // protocol_dst_ata
-                    pubkey: this.optional(order.fees?.protocolDstAta),
+                    // 5. maker
+                    pubkey: accounts.maker,
+                    isSigner: true,
+                    isWritable: true
+                },
+                {
+                    // 6. maker_src_ata
+                    pubkey: getAta(
+                        accounts.maker,
+                        order.srcMint,
+                        accounts.srcTokenProgram
+                    ),
+                    isWritable: true,
+                    isSigner: false
+                },
+                {
+                    // 7. dst_mint
+                    pubkey: order.dstMint,
                     isWritable: false,
                     isSigner: false
                 },
                 {
-                    // integrator_dst_ata
-                    pubkey: this.optional(order.fees?.integratorDstAta),
+                    // 8. maker_receiver
+                    pubkey: order.receiver,
                     isWritable: false,
                     isSigner: false
                 },
                 {
-                    // associated_token_program
+                    // 9. associated_token_program
                     pubkey: Address.ASSOCIATED_TOKE_PROGRAM_ID,
                     isWritable: false,
                     isSigner: false
                 },
                 {
-                    // src_token_program
-                    pubkey: accounts.srcTokenProgram,
+                    // 10. protocol_dst_ata
+                    pubkey: this.optional(order.fees?.protocolDstAta),
                     isWritable: false,
                     isSigner: false
                 },
                 {
-                    // system_program
-                    pubkey: Address.SYSTEM_PROGRAM_ID,
+                    // 11. integrator_dst_ata
+                    pubkey: this.optional(order.fees?.integratorDstAta),
                     isWritable: false,
                     isSigner: false
                 }

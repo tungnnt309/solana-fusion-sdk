@@ -1,5 +1,6 @@
 import {BN, BorshCoder} from '@coral-xyz/anchor'
 import * as borsh from 'borsh'
+import {UINT_64_MAX} from '@1inch/byte-utils'
 import * as crypto from 'node:crypto'
 import {Buffer} from 'buffer'
 import assert from 'assert'
@@ -7,18 +8,20 @@ import {AuctionDetails} from './auction-details'
 
 import {FeeConfig} from './fee-config'
 import {OrderInfoData} from './types'
+import {CancellationConfig} from './cancellation-config'
 import {Address, AddressLike, Bps} from '../domains'
 import {AmountCalculator, AuctionCalculator} from '../amount-calculator'
 import {FeeCalculator} from '../amount-calculator/fee-calculator/fee-calculator'
 import {FusionSwapContract, TransactionInstruction} from '../contracts'
-import {getPda, getAta} from '../utils/'
+import {getPda, getAta, assertUInteger} from '../utils/'
 import {IDL} from '../idl/fusion-swap'
 
 export class FusionOrder {
     private static DefaultExtra = {
         unwrapNative: false,
         orderExpirationDelay: 12,
-        fees: FeeConfig.ZERO
+        fees: FeeConfig.ZERO,
+        cancellationConfig: CancellationConfig.ALMOST_ZERO // to enable cancellation by resolver
     }
 
     private readonly orderConfig: {
@@ -30,6 +33,7 @@ export class FusionOrder {
         nativeDstAsset: boolean
         receiver: Address
         fees: FeeConfig
+        cancellationConfig: CancellationConfig
         dutchAuctionData: AuctionDetails
         srcMint: Address
         dstMint: Address
@@ -46,10 +50,13 @@ export class FusionOrder {
              */
             orderExpirationDelay?: number
             fees?: FeeConfig
+            /**
+             * In seconds
+             * Default is 12s
+             */
+            cancellationConfig: CancellationConfig
         } = FusionOrder.DefaultExtra
     ) {
-        // validate amounts
-
         const unwrapNative =
             extra.unwrapNative ?? FusionOrder.DefaultExtra.unwrapNative
 
@@ -62,14 +69,25 @@ export class FusionOrder {
             auctionDetails.duration +
             orderExpirationDelay
 
+        assertUInteger(orderExpirationDelay)
+        assertUInteger(deadline)
+        assertUInteger(orderInfo.id)
+        assertUInteger(orderInfo.srcAmount, UINT_64_MAX)
+        assertUInteger(orderInfo.estimatedDstAmount, UINT_64_MAX)
+        assertUInteger(orderInfo.minDstAmount, UINT_64_MAX)
+
         const fees = extra.fees || FusionOrder.DefaultExtra.fees
+        const cancellationConfig =
+            extra.cancellationConfig ||
+            FusionOrder.DefaultExtra.cancellationConfig
 
         this.orderConfig = {
             ...orderInfo,
             dutchAuctionData: auctionDetails,
             fees,
             nativeDstAsset: unwrapNative,
-            expirationTime: deadline
+            expirationTime: deadline,
+            cancellationConfig
         }
     }
 
@@ -150,13 +168,13 @@ export class FusionOrder {
 
         const reducedConfig = _ix.data.order as ReducedOrderConfig
 
-        const srcMint = ix.accounts[1]
-        const dstMint = ix.accounts[2]
-        const receiverAccMeta = ix.accounts[4]
-        const protocolDstAta = ix.accounts[7]
-        const integratorDstAta = ix.accounts[8]
+        const srcMint = ix.accounts[2]
+        const dstMint = ix.accounts[7]
+        const receiverAcc = ix.accounts[8]
+        const protocolDstAta = ix.accounts[10]
+        const integratorDstAta = ix.accounts[11]
 
-        assert(receiverAccMeta)
+        assert(receiverAcc)
         assert(srcMint)
         assert(dstMint)
         assert(protocolDstAta)
@@ -166,6 +184,26 @@ export class FusionOrder {
 
         const orderExpirationDelay =
             reducedConfig.expirationTime - auction.duration - auction.startTime
+
+        const fees = new FeeConfig(
+            protocolDstAta.pubkey.equal(ix.programId)
+                ? null
+                : protocolDstAta.pubkey,
+            integratorDstAta.pubkey.equal(ix.programId)
+                ? null
+                : integratorDstAta.pubkey,
+            Bps.fromFraction(fee.protocolFee, FeeConfig.BASE_1E5),
+            Bps.fromFraction(fee.integratorFee, FeeConfig.BASE_1E5),
+            Bps.fromFraction(fee.surplusPercentage, FeeConfig.BASE_1E2)
+        )
+        const cancellationConfig = new CancellationConfig(
+            BigInt(reducedConfig.fee.minCancellationPremium.toString()),
+            Bps.fromFraction(
+                reducedConfig.fee.maxCancellationMultiplier,
+                CancellationConfig.BASE_1E3
+            ),
+            reducedConfig.cancellationAuctionDuration
+        )
 
         return new FusionOrder(
             {
@@ -177,7 +215,7 @@ export class FusionOrder {
                 estimatedDstAmount: BigInt(
                     reducedConfig.estimatedDstAmount.toString()
                 ),
-                receiver: receiverAccMeta.pubkey
+                receiver: receiverAcc.pubkey
             },
             new AuctionDetails({
                 startTime: auction.startTime,
@@ -191,17 +229,8 @@ export class FusionOrder {
             {
                 unwrapNative: reducedConfig.nativeDstAsset,
                 orderExpirationDelay,
-                fees: new FeeConfig(
-                    protocolDstAta.pubkey.equal(ix.programId)
-                        ? null
-                        : protocolDstAta.pubkey,
-                    integratorDstAta.pubkey.equal(ix.programId)
-                        ? null
-                        : integratorDstAta.pubkey,
-                    Bps.fromFraction(fee.protocolFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fee.integratorFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fee.surplusPercentage, FeeConfig.BASE_1E2)
-                )
+                fees,
+                cancellationConfig
             }
         )
     }
@@ -234,6 +263,26 @@ export class FusionOrder {
         const orderExpirationDelay =
             reducedConfig.expirationTime - auction.duration - auction.startTime
 
+        const fees = new FeeConfig(
+            protocolDstAta.pubkey.equal(ix.programId)
+                ? null
+                : protocolDstAta.pubkey,
+            integratorDstAta.pubkey.equal(ix.programId)
+                ? null
+                : integratorDstAta.pubkey,
+            Bps.fromFraction(fee.protocolFee, FeeConfig.BASE_1E5),
+            Bps.fromFraction(fee.integratorFee, FeeConfig.BASE_1E5),
+            Bps.fromFraction(fee.surplusPercentage, FeeConfig.BASE_1E2)
+        )
+        const cancellationConfig = new CancellationConfig(
+            BigInt(reducedConfig.fee.minCancellationPremium.toString()),
+            Bps.fromFraction(
+                reducedConfig.fee.maxCancellationMultiplier,
+                CancellationConfig.BASE_1E3
+            ),
+            reducedConfig.cancellationAuctionDuration
+        )
+
         return new FusionOrder(
             {
                 srcMint: srcMint.pubkey,
@@ -258,17 +307,8 @@ export class FusionOrder {
             {
                 unwrapNative: reducedConfig.nativeDstAsset,
                 orderExpirationDelay,
-                fees: new FeeConfig(
-                    protocolDstAta.pubkey.equal(ix.programId)
-                        ? null
-                        : protocolDstAta.pubkey,
-                    integratorDstAta.pubkey.equal(ix.programId)
-                        ? null
-                        : integratorDstAta.pubkey,
-                    Bps.fromFraction(fee.protocolFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fee.integratorFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fee.surplusPercentage, FeeConfig.BASE_1E2)
-                )
+                fees,
+                cancellationConfig
             }
         )
     }
@@ -277,6 +317,23 @@ export class FusionOrder {
         const {dutchAuctionData: auction, fee} = json
         const orderExpirationDelay =
             json.expirationTime - auction.duration - auction.startTime
+
+        const fees = new FeeConfig(
+            fee.protocolDstAta ? new Address(fee.protocolDstAta) : null,
+            fee.integratorDstAta ? new Address(fee.integratorDstAta) : null,
+            Bps.fromFraction(fee.protocolFee, FeeConfig.BASE_1E5),
+            Bps.fromFraction(fee.integratorFee, FeeConfig.BASE_1E5),
+            Bps.fromFraction(fee.surplusPercentage, FeeConfig.BASE_1E2)
+        )
+
+        const cancellationConfig = new CancellationConfig(
+            BigInt(fee.minCancellationPremium.toString()),
+            Bps.fromFraction(
+                fee.maxCancellationMultiplier,
+                CancellationConfig.BASE_1E3
+            ),
+            json.cancellationAuctionDuration
+        )
 
         return new FusionOrder(
             {
@@ -300,15 +357,8 @@ export class FusionOrder {
             {
                 unwrapNative: json.nativeDstAsset,
                 orderExpirationDelay,
-                fees: new FeeConfig(
-                    fee.protocolDstAta ? new Address(fee.protocolDstAta) : null,
-                    fee.integratorDstAta
-                        ? new Address(fee.integratorDstAta)
-                        : null,
-                    Bps.fromFraction(fee.protocolFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fee.integratorFee, FeeConfig.BASE_1E5),
-                    Bps.fromFraction(fee.surplusPercentage, FeeConfig.BASE_1E2)
-                )
+                fees,
+                cancellationConfig
             }
         )
     }
@@ -332,7 +382,11 @@ export class FusionOrder {
     }
 
     public asReduced(): ReducedOrderConfig {
-        const {fees, dutchAuctionData: auction} = this.orderConfig
+        const {
+            fees,
+            dutchAuctionData: auction,
+            cancellationConfig
+        } = this.orderConfig
 
         return {
             id: this.orderConfig.id,
@@ -350,6 +404,13 @@ export class FusionOrder {
                 ),
                 surplusPercentage: fees.surplusShare.toFraction(
                     FeeConfig.BASE_1E2
+                ),
+                maxCancellationMultiplier:
+                    cancellationConfig.maxCancellationMultiplier.toFraction(
+                        CancellationConfig.BASE_1E3
+                    ),
+                minCancellationPremium: new BN(
+                    cancellationConfig.minCancellationPremium.toString()
                 )
             },
             dutchAuctionData: {
@@ -360,7 +421,9 @@ export class FusionOrder {
                     rateBump: p.coefficient,
                     timeDelta: p.delay
                 }))
-            }
+            },
+            cancellationAuctionDuration:
+                cancellationConfig.cancellationAuctionDuration
         }
     }
 
@@ -370,7 +433,7 @@ export class FusionOrder {
         const {protocolDstAta, integratorDstAta} = order.fee
 
         return {
-            ...this.build(),
+            ...order,
             srcAmount: order.srcAmount.toString(),
             estimatedDstAmount: order.estimatedDstAmount.toString(),
             minDstAmount: order.minDstAmount.toString(),
@@ -384,7 +447,9 @@ export class FusionOrder {
                     : null,
                 integratorDstAta: integratorDstAta
                     ? Address.fromBuffer(integratorDstAta).toString()
-                    : null
+                    : null,
+                minCancellationPremium:
+                    order.fee.minCancellationPremium.toString()
             }
         }
     }
@@ -437,124 +502,66 @@ export class FusionOrder {
         return this.getCalculator().getRequiredTakingAmount(takingAmount, time)
     }
 
-    // /**
-    //  * How much user will receive in taker asset
-    //  *
-    //  * @param taker who will fill order
-    //  * @param makingAmount maker swap amount
-    //  * @param time block time at which order will be filled
-    //  * @param blockBaseFee base fee of block at which order will be filled
-    //  */
-    // public getUserReceiveAmount(
-    //     taker: Address,
-    //     makingAmount: bigint,
-    //     time: bigint,
-    //     blockBaseFee = 0n
-    // ): bigint {
-    //     const takingAmount = calcTakingAmount(
-    //         makingAmount,
-    //         this.makingAmount,
-    //         this.takingAmount
-    //     )
-    //
-    //     return this.getAmountCalculator().getUserTakingAmountAmount(
-    //         taker,
-    //         takingAmount,
-    //         time,
-    //         blockBaseFee
-    //     )
-    // }
+    /**
+     * How much user will receive in dst token
+     *
+     * @param makingAmount maker swap amount
+     * @param time block time at which order will be filled
+     */
+    public getUserReceiveAmount(makingAmount: bigint, time: number): bigint {
+        const takingAmount = AmountCalculator.calcTakingAmount(
+            makingAmount,
+            this.srcAmount,
+            this.minDstAmount
+        )
 
-    // /**
-    //  * Fee in `takerAsset` which integrator gets to integrator wallet
-    //  *
-    //  * @param taker who will fill order
-    //  * @param makingAmount maker swap amount
-    //  * @param time block time at which order will be filled
-    //  * @param blockBaseFee base fee of block at which order will be filled
-    //  */
-    // public getIntegratorFee(
-    //     taker: Address,
-    //     time: bigint,
-    //     blockBaseFee = 0n,
-    //     makingAmount = this.makingAmount
-    // ): bigint {
-    //     const takingAmount = calcTakingAmount(
-    //         makingAmount,
-    //         this.makingAmount,
-    //         this.takingAmount
-    //     )
-    //
-    //     return (
-    //         this.getAmountCalculator().getIntegratorFee(
-    //             taker,
-    //             takingAmount,
-    //             time,
-    //             blockBaseFee
-    //         ) ?? 0n
-    //     )
-    // }
+        return this.getCalculator().getUserReceiveAmount(
+            takingAmount,
+            this.estimatedDstAmount,
+            time
+        )
+    }
 
-    // /**
-    //  * Fee in `takerAsset` which protocol gets as share from integrator fee
-    //  *
-    //  * @param taker who will fill order
-    //  * @param makingAmount maker swap amount
-    //  * @param time block time at which order will be filled
-    //  * @param blockBaseFee base fee of block at which order will be filled
-    //  */
-    // public getProtocolShareOfIntegratorFee(
-    //     taker: Address,
-    //     time: bigint,
-    //     blockBaseFee = 0n,
-    //     makingAmount = this.makingAmount
-    // ): bigint {
-    //     const takingAmount = calcTakingAmount(
-    //         makingAmount,
-    //         this.makingAmount,
-    //         this.takingAmount
-    //     )
-    //
-    //     return (
-    //         this.getAmountCalculator().getProtocolShareOfIntegratorFee(
-    //             taker,
-    //             takingAmount,
-    //             time,
-    //             blockBaseFee
-    //         ) ?? 0n
-    //     )
-    // }
+    /**
+     * Fee in `dstToken` which integrator gets to integrator ata account
+     *
+     * @param makingAmount maker swap amount
+     * @param time block time at which order will be filled
+     */
+    public getIntegratorFee(
+        time: number,
+        makingAmount = this.srcAmount
+    ): bigint {
+        const takingAmount = AmountCalculator.calcTakingAmount(
+            makingAmount,
+            this.srcAmount,
+            this.minDstAmount
+        )
 
-    // /**
-    //  * Fee in `takerAsset` which protocol gets
-    //  * It equals to `share from integrator fee plus resolver fee`
-    //  *
-    //  * @param taker who will fill order
-    //  * @param makingAmount maker swap amount
-    //  * @param time block time at which order will be filled
-    //  * @param blockBaseFee base fee of block at which order will be filled
-    //  */
-    // public getProtocolFee(
-    //     taker: Address,
-    //     time: bigint,
-    //     blockBaseFee = 0n,
-    //     makingAmount = this.makingAmount
-    // ): bigint {
-    //     const takingAmount = calcTakingAmount(
-    //         makingAmount,
-    //         this.makingAmount,
-    //         this.takingAmount
-    //     )
-    //
-    //     return (
-    //         this.getAmountCalculator().getProtocolFee(
-    //             taker,
-    //             takingAmount,
-    //             time,
-    //             blockBaseFee
-    //         ) ?? 0n
-    //     )
-    // }
+        return this.getCalculator().getIntegratorFee(takingAmount, time) ?? 0n
+    }
+
+    /**
+     * Fee in `dstToken` which protocol gets to ata account
+     *
+     * @param makingAmount maker swap amount
+     * @param time block time at which order will be filled
+     */
+    public getProtocolFee(time: number, makingAmount = this.srcAmount): bigint {
+        const takingAmount = AmountCalculator.calcTakingAmount(
+            makingAmount,
+            this.srcAmount,
+            this.minDstAmount
+        )
+
+        return (
+            this.getCalculator().getProtocolFee(
+                takingAmount,
+                this.estimatedDstAmount,
+                time
+            ) ?? 0n
+        )
+    }
 
     /**
      * Check is order expired at a given time
@@ -582,10 +589,13 @@ type ReducedOrderConfig = {
     estimatedDstAmount: BN
     expirationTime: number
     nativeDstAsset: boolean
+    cancellationAuctionDuration: number
     fee: {
         protocolFee: number
         integratorFee: number
         surplusPercentage: number
+        minCancellationPremium: BN
+        maxCancellationMultiplier: number
     }
     dutchAuctionData: {
         startTime: number
@@ -611,6 +621,7 @@ type OrderConfig = ReducedOrderConfig & {
 export type FusionOrderJSON = {
     id: number
     receiver: string
+    cancellationAuctionDuration: number
     srcMint: string
     dstMint: string
     srcAmount: string
@@ -624,6 +635,8 @@ export type FusionOrderJSON = {
         protocolFee: number
         integratorFee: number
         surplusPercentage: number
+        minCancellationPremium: string
+        maxCancellationMultiplier: number
     }
     dutchAuctionData: {
         startTime: number
@@ -651,7 +664,9 @@ const OrderConfigSchema = {
                 integratorDstAta: {option: {array: {type: 'u8', len: 32}}},
                 protocolFee: 'u16',
                 integratorFee: 'u16',
-                surplusPercentage: 'u8'
+                surplusPercentage: 'u8',
+                minCancellationPremium: 'u64',
+                maxCancellationMultiplier: 'u16'
             }
         },
         dutchAuctionData: {
@@ -671,6 +686,7 @@ const OrderConfigSchema = {
                 }
             }
         },
+        cancellationAuctionDuration: 'u32',
         srcMint: {array: {type: 'u8', len: 32}},
         dstMint: {array: {type: 'u8', len: 32}}
     }
