@@ -457,11 +457,11 @@ export class FusionOrder {
         /**
          * Src token program id - TOKEN_PROGRAM_ID or TOKEN_2020_PROGRAM_ID
          */
-        srcTokenProgram: Address = Address.TOKEN_PROGRAM_ID,
+        srcTokenProgram: AddressLike = Address.TOKEN_PROGRAM_ID,
         /**
          * FusionSwap program id
          */
-        programId: Address = FusionSwapContract.ADDRESS
+        programId: AddressLike = FusionSwapContract.ADDRESS
     ): Address {
         const escrow = getPda(programId, [
             new TextEncoder().encode('escrow'),
