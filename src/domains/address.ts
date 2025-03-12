@@ -15,7 +15,7 @@ export class Address implements AddressLike {
         'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
     )
 
-    public static TOKEN_2020_PROGRAM_ID = new Address(
+    public static TOKEN_2022_PROGRAM_ID = new Address(
         'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
     )
 
