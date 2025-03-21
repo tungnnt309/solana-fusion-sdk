@@ -41,14 +41,15 @@
     "build:types": "tsc --project tsconfig.types.json",
     "sync:idl": "tsx scripts/sync-idl.ts",
     "sync:programs": "tsx scripts/sync-programs.ts",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "lint:ci": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint": "eslint  \"{src,apps,libs,test,tests}/**/*.ts\" --fix",
     "lint:types": "tsc --noEmit",
     "test": "TZ=UTC jest",
     "test:integration": "TZ=UTC jest -c jest.integration.config.js",
     "test:watch": "jest --watch",
-    "changelog:generate": "changelog generate -a"
+    "changelog:generate": "changelog generate -a",
+    "qa:fix": "npm run build && npm run format && npm run lint && npm run lint:types && npm run test"
   },
   "devDependencies": {
     "@1inch/eslint-config": "latest",
@@ -60,6 +61,7 @@
     "@types/bn.js": "5.1.6",
     "@types/jest": "29.5.14",
     "@types/node": "22.13.4",
+    "@types/ws": "^8.18.0",
     "@typescript-eslint/eslint-plugin": "~8.24.1",
     "@typescript-eslint/parser": "~8.24.1",
     "camelcase": "8.0.0",
@@ -101,6 +103,7 @@
     "borsh": "2.0.0",
     "bs58": "6.0.0",
     "tslib": "2.8.1",
-    "type-fest": "4.35.0"
+    "type-fest": "4.35.0",
+    "ws": "^8.18.1"
   }
 }

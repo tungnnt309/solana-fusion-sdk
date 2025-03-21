@@ -1,4 +1,5 @@
 import {Jsonify} from 'type-fest'
+import WebSocket from 'ws'
 import {FusionOrder} from '../fusion-order'
 
 export type RpcEvent<T extends RpcMethod, K> = {
@@ -14,15 +15,36 @@ export type ActiveOrder = {
     remainingMakerAmount: string
 }
 
+export enum RpcMethod {
+    GetAllowedMethods = 'getAllowedMethods',
+    GetActiveOrders = 'getActiveOrders',
+    Ping = 'ping'
+}
+
 export type GetAllowMethodsRpcEvent = RpcEvent<
     RpcMethod.GetAllowedMethods,
     RpcMethod[]
 >
 
-export enum RpcMethod {
-    GetAllowedMethods = 'getAllowedMethods',
-    GetActiveOrders = 'getActiveOrders'
+export type PaginationMeta = {
+    totalItems: number
+    itemsPerPage: number
+    totalPages: number
+    currentPage: number
 }
+
+export type PaginationOutput<
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    T extends Record<string, any> = Record<string, any>
+> = {
+    meta: PaginationMeta
+    items: T[]
+}
+
+export type GetActiveOrdersRpcEvent = RpcEvent<
+    RpcMethod.GetActiveOrders,
+    PaginationOutput<ActiveOrder>
+>
 
 export enum EventType {
     Create = 'create',
@@ -35,7 +57,7 @@ export type Event<K extends string, T> = {
     result: T
 }
 
-export type OrderEventPayload = {
+export type CreateOrderEventPayload = {
     transactionSignature: string
     slotNumber: number
     blockTime: number
@@ -43,19 +65,117 @@ export type OrderEventPayload = {
     commitment: string
     orderHash: string
     maker: string
-    resolver: string | undefined
-    order: FusionOrder | undefined
-    filledAuctionTakerAmount: string | undefined
-    filledMakerAmount: string | undefined
+    order: Jsonify<FusionOrder>
+    filledAuctionTakerAmount: string
+    filledMakerAmount: string
 }
 
-export type OrderCreateEvent = Event<EventType.Create, OrderEventPayload>
+export type FillOrderEventPayload = {
+    transactionSignature: string
+    slotNumber: number
+    blockTime: number
+    action: string
+    commitment: string
+    orderHash: string
+    maker: string
+    resolver: string
+    filledAuctionTakerAmount: string
+    filledMakerAmount: string
+}
+export type CancelOrderEventPayload = {
+    transactionSignature: string
+    slotNumber: number
+    blockTime: number
+    action: string
+    commitment: string
+    orderHash: string
+    maker: string
+    filledAuctionTakerAmount: string
+    filledMakerAmount: string
+}
 
-export type OrderFillEvent = Event<EventType.Fill, OrderEventPayload>
+export type OrderCreatedEvent = Event<EventType.Create, CreateOrderEventPayload>
 
-export type OrderCancelEvent = Event<EventType.Cancel, OrderEventPayload>
+export type OrderFilledEvent = Event<EventType.Fill, FillOrderEventPayload>
+
+export type OrderCancelledEvent = Event<
+    EventType.Cancel,
+    CancelOrderEventPayload
+>
 
 export type OrderEventType =
-    | OrderCreateEvent
-    | OrderFillEvent
-    | OrderCancelEvent
+    | OrderCreatedEvent
+    | OrderFilledEvent
+    | OrderCancelledEvent
+
+export type OnOrderCb = (data: OrderEventType) => any
+
+export type OnOrderCreatedCb = (data: OrderCreatedEvent) => any
+
+export type OnOrderFilledCb = (data: OrderFilledEvent) => any
+
+export type OnOrderCancelledCb = (data: OrderCancelledEvent) => any
+
+export enum WebSocketEvent {
+    Close = 'close',
+    Error = 'error',
+    Message = 'message',
+    Open = 'open'
+}
+
+export type RpcEventType = GetAllowMethodsRpcEvent | GetActiveOrdersRpcEvent
+
+export type OnGetActiveOrdersCb = (
+    data: GetActiveOrdersRpcEvent['result']
+) => any
+
+export type AnyFunction = (...args: any[]) => any
+
+export type AnyFunctionWithThis = (this: WebSocket, ...args: any[]) => void
+
+export type WsApiConfig = {
+    url: string
+    lazyInit?: boolean
+    authKey?: string
+}
+
+export type OnMessageCb = (data: any) => void
+
+export type OnMessageInputVoidCb = () => void
+
+export type OnGetAllowedMethodsCb = (
+    data: GetAllowMethodsRpcEvent['result']
+) => any
+
+export type OnPongCb = () => any
+
+export type PaginationParams = {
+    page?: number
+    limit?: number
+}
+
+export class PaginationRequest {
+    page: number | undefined
+
+    limit: number | undefined
+
+    constructor(page: number | undefined, limit: number | undefined) {
+        this.page = page
+        this.limit = limit
+        this.validate()
+    }
+
+    private validate(): void {
+        if (this.limit != null && (this.limit < 1 || this.limit > 500)) {
+            throw new Error('limit should be in range between 1 and 500')
+        }
+
+        if (this.page != null && this.page < 1) {
+            throw new Error(`page should be >= 1`)
+        }
+    }
+}
+
+export enum NetworkEnum {
+    SOLANA = 501
+}
