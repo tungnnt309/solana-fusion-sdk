@@ -4,6 +4,7 @@ import {castUrl} from './url'
 import {
     AnyFunction,
     AnyFunctionWithThis,
+    ErrorFunctionWithThis,
     NetworkEnum,
     OnMessageCb,
     WebSocketEvent,
@@ -57,11 +58,25 @@ export class WebSocketApi {
         this.provider.init()
     }
 
-    on(event: WebSocketEvent, cb: AnyFunctionWithThis): void {
+    on(event: WebSocketEvent.Error, cb: ErrorFunctionWithThis): void
+
+    on(event: WebSocketEvent, cb: AnyFunctionWithThis): void
+
+    on(
+        event: WebSocketEvent,
+        cb: AnyFunctionWithThis | ErrorFunctionWithThis
+    ): void {
         this.provider.on(event, cb)
     }
 
-    off(event: WebSocketEvent, cb: AnyFunctionWithThis): void {
+    off(event: WebSocketEvent.Error, cb: ErrorFunctionWithThis): void
+
+    off(event: WebSocketEvent, cb: AnyFunctionWithThis): void
+
+    off(
+        event: WebSocketEvent,
+        cb: AnyFunctionWithThis | ErrorFunctionWithThis
+    ): void {
         this.provider.off(event, cb)
     }
 

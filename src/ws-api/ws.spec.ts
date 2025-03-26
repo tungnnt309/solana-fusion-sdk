@@ -1,4 +1,5 @@
 import {WebSocket, WebSocketServer} from 'ws'
+import assert from 'assert'
 import {WebSocketApi} from './ws-api'
 import {
     EventType,
@@ -14,7 +15,7 @@ import {
 import {castUrl} from './url'
 import {WebsocketClient} from './websocket-client.connector'
 
-jest.setTimeout(5 * 60 * 1000)
+jest.setTimeout(10 * 1000)
 
 describe(__filename, () => {
     describe('base', () => {
@@ -69,7 +70,7 @@ describe(__filename, () => {
         })
 
         // TODO repair waiting a lot of time ....
-        xit('should be possible to subscribe to error', (done) => {
+        it.skip('should be possible to subscribe to error', (done) => {
             const wsSdk = WebSocketApi.createFromConfig({
                 url: 'ws://localhost:2345'
             })
@@ -121,7 +122,7 @@ describe(__filename, () => {
                 lazyInit: true
             })
 
-            expect(() => wsSdk.send({id: 1})).toThrowError()
+            expect(() => wsSdk.send({id: 1})).toThrow()
         })
 
         it('should be possible to initialize not in lazy mode', (done) => {
@@ -207,7 +208,7 @@ describe(__filename, () => {
     })
 
     describe('rpc', () => {
-        it('can ping pong ', (done) => {
+        it('can ping pong', (done) => {
             const {url, wss} = createWebsocketRpcServerMock((_ws, _data) => {})
 
             const wsSdk = WebSocketApi.createFromConfig({
@@ -233,7 +234,7 @@ describe(__filename, () => {
             })
         })
 
-        it('can retrieve allowed rpc methods ', (done) => {
+        it('can retrieve allowed rpc methods', (done) => {
             const response: GetAllowMethodsRpcEvent = {
                 method: RpcMethod.GetAllowedMethods,
                 result: [
@@ -374,8 +375,8 @@ describe(__filename, () => {
                         srcAmount: '1200000',
                         minDstAmount: '6729670',
                         expirationTime: 1742228896,
-                        nativeDstAsset: true,
-                        nativeSrcAsset: false,
+                        srcAssetIsNative: true,
+                        dstAssetIsNative: false,
                         dutchAuctionData: {
                             duration: 24,
                             startTime: 1742228860,
@@ -442,8 +443,8 @@ describe(__filename, () => {
                         srcAmount: '1200000',
                         minDstAmount: '6729670',
                         expirationTime: 1742228896,
-                        nativeDstAsset: true,
-                        nativeSrcAsset: false,
+                        srcAssetIsNative: true,
+                        dstAssetIsNative: false,
                         dutchAuctionData: {
                             duration: 24,
                             startTime: 1742228860,
@@ -511,8 +512,8 @@ describe(__filename, () => {
                         srcAmount: '1200000',
                         minDstAmount: '6729670',
                         expirationTime: 1742228896,
-                        nativeDstAsset: true,
-                        nativeSrcAsset: false,
+                        srcAssetIsNative: true,
+                        dstAssetIsNative: false,
                         dutchAuctionData: {
                             duration: 24,
                             startTime: 1742228860,
@@ -597,8 +598,8 @@ describe(__filename, () => {
                         srcAmount: '1200000',
                         minDstAmount: '6729670',
                         expirationTime: 1742228896,
-                        nativeDstAsset: true,
-                        nativeSrcAsset: false,
+                        srcAssetIsNative: true,
+                        dstAssetIsNative: false,
                         dutchAuctionData: {
                             duration: 24,
                             startTime: 1742228860,
@@ -656,7 +657,7 @@ describe(__filename, () => {
 })
 
 function createWebsocketRpcServerMock(
-    cb: (ws: WebSocket, result: any) => void
+    cb: (ws: WebSocket, result: string) => void
 ): {
     url: string
     wss: WebSocketServer
@@ -666,7 +667,10 @@ function createWebsocketRpcServerMock(
     const wss = new WebSocketServer({port, path: '/ws/v1.0/501'})
 
     wss.on('connection', (ws: WebSocket) => {
-        ws.on('message', (data: unknown) => cb(ws, data))
+        ws.on('message', (data: unknown) => {
+            assert(typeof data === 'string' || data instanceof Uint8Array)
+            cb(ws, data.toString())
+        })
         ws.on('ping', () => {
             ws.pong()
         })
@@ -675,7 +679,7 @@ function createWebsocketRpcServerMock(
     return {url: returnUrl, wss}
 }
 
-function createWebsocketServerMock(messages: any[]): {
+function createWebsocketServerMock(messages: unknown[]): {
     url: string
     wss: WebSocketServer
 } {

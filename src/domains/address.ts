@@ -108,4 +108,8 @@ export class Address implements AddressLike {
     public equal(other: Address): boolean {
         return this.toBuffer().equals(other.toBuffer())
     }
+
+    public isNative(): boolean {
+        return this.equal(Address.NATIVE)
+    }
 }

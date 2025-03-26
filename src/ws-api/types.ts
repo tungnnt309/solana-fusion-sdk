@@ -108,13 +108,13 @@ export type OrderEventType =
     | OrderFilledEvent
     | OrderCancelledEvent
 
-export type OnOrderCb = (data: OrderEventType) => any
+export type OnOrderCb = (data: OrderEventType) => unknown
 
-export type OnOrderCreatedCb = (data: OrderCreatedEvent) => any
+export type OnOrderCreatedCb = (data: OrderCreatedEvent) => unknown
 
-export type OnOrderFilledCb = (data: OrderFilledEvent) => any
+export type OnOrderFilledCb = (data: OrderFilledEvent) => unknown
 
-export type OnOrderCancelledCb = (data: OrderCancelledEvent) => any
+export type OnOrderCancelledCb = (data: OrderCancelledEvent) => unknown
 
 export enum WebSocketEvent {
     Close = 'close',
@@ -127,11 +127,12 @@ export type RpcEventType = GetAllowMethodsRpcEvent | GetActiveOrdersRpcEvent
 
 export type OnGetActiveOrdersCb = (
     data: GetActiveOrdersRpcEvent['result']
-) => any
+) => unknown
 
-export type AnyFunction = (...args: any[]) => any
+export type AnyFunction = (...args: unknown[]) => unknown
 
-export type AnyFunctionWithThis = (this: WebSocket, ...args: any[]) => void
+export type AnyFunctionWithThis = (this: WebSocket, ...args: unknown[]) => void
+export type ErrorFunctionWithThis = (this: WebSocket, error: Error) => void
 
 export type WsApiConfig = {
     url: string
@@ -139,15 +140,15 @@ export type WsApiConfig = {
     authKey?: string
 }
 
-export type OnMessageCb = (data: any) => void
+export type OnMessageCb = (data: unknown) => void
 
 export type OnMessageInputVoidCb = () => void
 
 export type OnGetAllowedMethodsCb = (
     data: GetAllowMethodsRpcEvent['result']
-) => any
+) => unknown
 
-export type OnPongCb = () => any
+export type OnPongCb = () => unknown
 
 export type PaginationParams = {
     page?: number

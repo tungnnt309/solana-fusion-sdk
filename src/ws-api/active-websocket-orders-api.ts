@@ -1,4 +1,3 @@
-import {orderEvents} from './constants'
 import {
     EventType,
     OnOrderCancelledCb,
@@ -17,34 +16,45 @@ export class ActiveOrdersWebSocketApi {
     }
 
     onOrder(cb: OnOrderCb): void {
-        this.provider.onMessage((data: OrderEventType) => {
-            if (orderEvents.includes(data.event)) {
+        this.provider.onMessage((data: unknown) => {
+            console.log({data})
+
+            if (isOrderEvent(data)) {
                 cb(data)
             }
         })
     }
 
     onOrderCreated(cb: OnOrderCreatedCb): void {
-        this.provider.onMessage((data: OrderEventType) => {
-            if (data.event === EventType.Create) {
+        this.provider.onMessage((data: unknown) => {
+            if (isOrderEvent(data) && data.event === EventType.Create) {
                 cb(data)
             }
         })
     }
 
     onOrderFilled(cb: OnOrderFilledCb): void {
-        this.provider.onMessage((data: OrderEventType) => {
-            if (data.event === EventType.Fill) {
+        this.provider.onMessage((data: unknown) => {
+            if (isOrderEvent(data) && data.event === EventType.Fill) {
                 cb(data)
             }
         })
     }
 
     onOrderCancelled(cb: OnOrderCancelledCb): void {
-        this.provider.onMessage((data: OrderEventType) => {
-            if (data.event === EventType.Cancel) {
+        this.provider.onMessage((data: unknown) => {
+            if (isOrderEvent(data) && data.event === EventType.Cancel) {
                 cb(data)
             }
         })
     }
+}
+
+function isOrderEvent(data: unknown): data is OrderEventType {
+    return (
+        typeof data === 'object' &&
+        data !== null &&
+        'event' in data &&
+        typeof data.event === 'string'
+    )
 }

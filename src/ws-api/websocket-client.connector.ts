@@ -80,14 +80,20 @@ export class WebsocketClient extends WsProviderConnector {
     send<T>(message: T): void {
         this.checkInitialized()
         const serialized = JSON.stringify(message)
+
         this.ws.send(serialized)
     }
 
     onMessage(cb: OnMessageCb): void {
-        this.on('message', (data: any) => {
-            const parsedData = JSON.parse(data)
+        this.on('message', (data: unknown) => {
+            if (data instanceof Uint8Array || typeof data === 'string') {
+                const parsedData = JSON.parse(data.toString())
 
-            cb(parsedData)
+                cb(parsedData)
+            } else {
+                // eslint-disable-next-line no-console
+                console.error('Unexpected message type:', data)
+            }
         })
     }
 

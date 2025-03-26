@@ -1,6 +1,7 @@
 import {
     AnyFunction,
     AnyFunctionWithThis,
+    ErrorFunctionWithThis,
     OnMessageCb,
     OnMessageInputVoidCb
 } from './types'
@@ -8,9 +9,15 @@ import {
 export abstract class WsProviderConnector {
     abstract init(): void
 
-    abstract on(event: string, cb: AnyFunctionWithThis): void
+    abstract on(
+        event: string,
+        cb: AnyFunctionWithThis | ErrorFunctionWithThis
+    ): void
 
-    abstract off(event: string, cb: AnyFunctionWithThis): void
+    abstract off(
+        event: string,
+        cb: AnyFunctionWithThis | ErrorFunctionWithThis
+    ): void
 
     abstract onOpen(cb: AnyFunctionWithThis): void
 

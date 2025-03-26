@@ -1,5 +1,4 @@
 import {WritableDeep} from 'type-fest'
-
 const _IDL = {
     address: 'DyXFcRxGWFoMz1j76SeMXHjQqZKudLXeJY3h1K7BNJiQ',
     metadata: {

@@ -9,7 +9,7 @@ import {IDL} from '../idl/fusion-swap'
 import {getPda} from '../utils/addresses/pda'
 
 export class FusionSwapContract {
-    static ADDRESS = new Address('hfx5P17FFE6Twr41CujppXU67K8VgA3NUtEn8UHxb6P')
+    static ADDRESS = new Address('5uzpYuGqBaetRMXPDtGWGN9W4mdmgBzpGHcQACrZ1npi')
 
     private readonly coder = new BorshCoder(IDL)
 
@@ -237,7 +237,7 @@ export class FusionSwapContract {
                     isSigner: false
                 },
                 // 13. maker_dst_ata
-                order.unwrapToNative
+                order.dstAssetIsNative
                     ? {
                           pubkey: this.programId,
                           isWritable: false,
@@ -253,7 +253,7 @@ export class FusionSwapContract {
                           isSigner: false
                       },
                 // 14. taker_dst_ata
-                order.unwrapToNative
+                order.dstAssetIsNative
                     ? {
                           pubkey: this.programId,
                           isWritable: false,
@@ -269,7 +269,7 @@ export class FusionSwapContract {
                           isSigner: false
                       },
                 // 15. protocol_dst_ata
-                order.unwrapToNative || !order.fees?.protocolDstAta
+                order.dstAssetIsNative || !order.fees?.protocolDstAta
                     ? {
                           pubkey: this.programId,
                           isWritable: false,
@@ -281,7 +281,7 @@ export class FusionSwapContract {
                           isSigner: false
                       },
                 // 16. integrator_dst_ata
-                order.unwrapToNative || !order.fees?.integratorDstAta
+                order.dstAssetIsNative || !order.fees?.integratorDstAta
                     ? {
                           pubkey: this.programId,
                           isWritable: false,
@@ -366,7 +366,8 @@ export class FusionSwapContract {
                 }
             ],
             this.coder.instruction.encode('cancel', {
-                orderHash
+                orderHash,
+                orderSrcAssetIsNative: order.srcAssetIsNative
             })
         )
     }
@@ -485,7 +486,7 @@ export class FusionSwapContract {
                     isSigner: false
                 },
                 // 12. protocol_dst_ata
-                order.unwrapToNative || !order.fees?.protocolDstAta
+                order.dstAssetIsNative || !order.fees?.protocolDstAta
                     ? {
                           pubkey: this.programId,
                           isWritable: false,
@@ -497,7 +498,7 @@ export class FusionSwapContract {
                           isSigner: false
                       },
                 // 13. integrator_dst_ata
-                order.unwrapToNative || !order.fees?.integratorDstAta
+                order.dstAssetIsNative || !order.fees?.integratorDstAta
                     ? {
                           pubkey: this.programId,
                           isWritable: false,

@@ -36,8 +36,8 @@ export class RpcWebsocketApi {
     }
 
     onGetActiveOrders(cb: OnGetActiveOrdersCb): void {
-        this.provider.onMessage((data: RpcEventType) => {
-            if (data.method === RpcMethod.GetActiveOrders) {
+        this.provider.onMessage((data: unknown) => {
+            if (isRpcEvent(data) && data.method === RpcMethod.GetActiveOrders) {
                 cb(data.result)
             }
         })
@@ -48,10 +48,22 @@ export class RpcWebsocketApi {
     }
 
     onGetAllowedMethods(cb: OnGetAllowedMethodsCb): void {
-        this.provider.onMessage((data: RpcEventType) => {
-            if (data.method === RpcMethod.GetAllowedMethods) {
+        this.provider.onMessage((data: unknown) => {
+            if (
+                isRpcEvent(data) &&
+                data.method === RpcMethod.GetAllowedMethods
+            ) {
                 cb(data.result)
             }
         })
     }
+}
+
+function isRpcEvent(data: unknown): data is RpcEventType {
+    return (
+        typeof data === 'object' &&
+        data !== null &&
+        'method' in data &&
+        'result' in data
+    )
 }

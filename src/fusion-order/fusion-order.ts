@@ -29,8 +29,8 @@ export class FusionOrder {
         minDstAmount: bigint // u64
         estimatedDstAmount: bigint // u64
         expirationTime: number // u32
-        nativeSrcAsset: boolean
-        nativeDstAsset: boolean
+        srcAssetIsNative: boolean
+        dstAssetIsNative: boolean
         receiver: Address
         fees: FeeConfig
         resolverCancellationConfig: ResolverCancellationConfig
@@ -43,8 +43,8 @@ export class FusionOrder {
         orderInfo: OrderInfoData,
         auctionDetails: AuctionDetails,
         extra: {
-            nativeSrcAsset: boolean
-            nativeDstAsset: boolean
+            srcAssetIsNative: boolean
+            dstAssetIsNative: boolean
             /**
              * Order will expire in `orderExpirationDelay` after auction ends
              * Default 12s
@@ -84,8 +84,8 @@ export class FusionOrder {
             ...orderInfo,
             dutchAuctionData: auctionDetails,
             fees,
-            nativeSrcAsset: extra.nativeSrcAsset,
-            nativeDstAsset: extra.nativeDstAsset,
+            srcAssetIsNative: extra.srcAssetIsNative,
+            dstAssetIsNative: extra.dstAssetIsNative,
             expirationTime: deadline,
             resolverCancellationConfig: resolverCancellationConfig
         }
@@ -159,8 +159,12 @@ export class FusionOrder {
         return this.orderConfig.id
     }
 
-    get unwrapToNative(): boolean {
-        return this.orderConfig.nativeDstAsset
+    get srcAssetIsNative(): boolean {
+        return this.orderConfig.srcAssetIsNative
+    }
+
+    get dstAssetIsNative(): boolean {
+        return this.orderConfig.dstAssetIsNative
     }
 
     static new(
@@ -179,18 +183,18 @@ export class FusionOrder {
         return new FusionOrder(
             {
                 ...orderInfo,
-                srcMint: orderInfo.srcMint.equal(Address.NATIVE)
+                srcMint: orderInfo.srcMint.isNative()
                     ? Address.WRAPPED_NATIVE
                     : orderInfo.srcMint,
-                dstMint: orderInfo.dstMint.equal(Address.NATIVE)
+                dstMint: orderInfo.dstMint.isNative()
                     ? Address.WRAPPED_NATIVE
                     : orderInfo.dstMint
             },
             auctionDetails,
             {
                 ...extra,
-                nativeSrcAsset: orderInfo.srcMint.equal(Address.NATIVE),
-                nativeDstAsset: orderInfo.dstMint.equal(Address.NATIVE)
+                srcAssetIsNative: orderInfo.srcMint.equal(Address.NATIVE),
+                dstAssetIsNative: orderInfo.dstMint.equal(Address.NATIVE)
             }
         )
     }
@@ -354,8 +358,8 @@ export class FusionOrder {
                 }))
             }),
             {
-                nativeDstAsset: reducedConfig.nativeDstAsset,
-                nativeSrcAsset: reducedConfig.nativeSrcAsset,
+                dstAssetIsNative: reducedConfig.dstAssetIsNative,
+                srcAssetIsNative: reducedConfig.srcAssetIsNative,
                 orderExpirationDelay,
                 fees,
                 resolverCancellationConfig
@@ -401,8 +405,8 @@ export class FusionOrder {
                 }))
             }),
             {
-                nativeSrcAsset: json.nativeSrcAsset,
-                nativeDstAsset: json.nativeDstAsset,
+                srcAssetIsNative: json.srcAssetIsNative,
+                dstAssetIsNative: json.dstAssetIsNative,
                 orderExpirationDelay,
                 fees,
                 resolverCancellationConfig
@@ -425,8 +429,8 @@ export class FusionOrder {
                 this.orderConfig.estimatedDstAmount.toString()
             ),
             expirationTime: this.orderConfig.expirationTime,
-            nativeSrcAsset: this.orderConfig.nativeSrcAsset,
-            nativeDstAsset: this.orderConfig.nativeDstAsset,
+            srcAssetIsNative: this.orderConfig.srcAssetIsNative,
+            dstAssetIsNative: this.orderConfig.dstAssetIsNative,
             fee: {
                 protocolFee: fees.protocolFee.toFraction(FeeConfig.BASE_1E5),
                 integratorFee: fees.integratorFee.toFraction(
@@ -630,8 +634,8 @@ type ContractOrderConfig = {
     minDstAmount: BN
     estimatedDstAmount: BN
     expirationTime: number
-    nativeSrcAsset: boolean
-    nativeDstAsset: boolean
+    srcAssetIsNative: boolean
+    dstAssetIsNative: boolean
     cancellationAuctionDuration: number
     fee: {
         protocolFee: number
@@ -660,8 +664,8 @@ export type FusionOrderJSON = {
     minDstAmount: string
     estimatedDstAmount: string
     expirationTime: number
-    nativeSrcAsset: boolean
-    nativeDstAsset: boolean
+    srcAssetIsNative: boolean
+    dstAssetIsNative: boolean
     fee: {
         protocolDstAta: string | null
         integratorDstAta: string | null
@@ -688,8 +692,8 @@ const OrderConfigSchema = {
         minDstAmount: 'u64',
         estimatedDstAmount: 'u64',
         expirationTime: 'u32',
-        nativeSrcAsset: 'bool',
-        nativeDstAsset: 'bool',
+        srcAssetIsNative: 'bool',
+        dstAssetIsNative: 'bool',
         fee: {
             struct: {
                 protocolFee: 'u16',
