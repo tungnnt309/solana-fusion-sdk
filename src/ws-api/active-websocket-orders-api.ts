@@ -17,8 +17,6 @@ export class ActiveOrdersWebSocketApi {
 
     onOrder(cb: OnOrderCb): void {
         this.provider.onMessage((data: unknown) => {
-            console.log({data})
-
             if (isOrderEvent(data)) {
                 cb(data)
             }
