@@ -427,7 +427,7 @@ export class FusionSwapContract {
                 {
                     // 4. maker_receiver
                     pubkey: order.receiver,
-                    isWritable: false,
+                    isWritable: order.dstAssetIsNative,
                     isSigner: false
                 },
                 {
