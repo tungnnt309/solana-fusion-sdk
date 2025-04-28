@@ -1,6 +1,6 @@
 import {WritableDeep} from 'type-fest'
 const _IDL = {
-    address: 'DyXFcRxGWFoMz1j76SeMXHjQqZKudLXeJY3h1K7BNJiQ',
+    address: '5jzZhrzqkbdwp5d3J1XbmaXMRnqeXimM1mDMoGHyvR7S',
     metadata: {
         name: 'whitelist',
         version: '0.1.0',
