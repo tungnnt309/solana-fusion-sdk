@@ -1,6 +1,6 @@
 {
   "name": "@1inch/solana-fusion-sdk",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "SDK for fusion on Solana",
   "author": "@1inch",
   "license": "MIT",
@@ -118,11 +118,11 @@
     "axios": "^1"
   },
   "peerDependenciesMeta": {
-      "axios": {
-          "optional": true
-      },
-      "assert": {
-          "optional": true
-      }
+    "axios": {
+      "optional": true
+    },
+    "assert": {
+      "optional": true
+    }
   }
 }
