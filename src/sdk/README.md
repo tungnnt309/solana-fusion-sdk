@@ -1,4 +1,4 @@
-# SDK interact with Fusion protocol
+# SDK to interact with Fusion protocol
 
 Create, cancel, check order status and more
 
