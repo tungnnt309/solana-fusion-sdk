@@ -13,11 +13,14 @@ Add to `package.json`
 ```
 
 ## Docs
+- [FusionOrder](./fusion-order/README.md)
+- [SDK](./sdk/README.md)
 - [Websocket Api](./src/ws-api/README.md)
 
 ## Getting started
 
-Create and submit order
+### For user
+**Create and submit order:**
 
 ```typescript
 import { Address, FusionSwapContract, Sdk } from '@1inch/solana-fusion-sdk'
