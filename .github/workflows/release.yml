@@ -39,7 +39,7 @@ jobs:
 
       - name: Auth in GitHub private registry npm
         run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ github.token }}" > .npmrc
           echo "@1inch:registry=https://npm.pkg.github.com" >> .npmrc
 
       - name: Install Dev Dependencies
@@ -57,7 +57,7 @@ jobs:
 
       - name: Create github release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email ci_cd_bot@1inch.io
           git config --global user.name "CI/CD Bot"
@@ -70,5 +70,5 @@ jobs:
 
       - name: Trigger publish
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: gh workflow run publish.yml -r v${{ steps.version.outputs.NEW_VERSION }}
