@@ -1,5 +1,5 @@
-import {FusionOrder} from 'fusion-order'
-import {OrderInfoDTO} from 'api'
+import {OrderInfoDTO} from '../api'
+import {FusionOrder} from '../fusion-order'
 import {Address} from '../domains'
 
 export class ActiveOrder {
