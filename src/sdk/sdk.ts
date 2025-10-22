@@ -21,14 +21,15 @@ export class Sdk {
         dstToken: Address,
         amount: bigint,
         signer: Address,
-        slippage?: Bps
+        slippage?: Bps,
+        enableEstimate?: boolean,
     ): Promise<Quote> {
         const quoteRaw = await this.quoterApi.getQuote(
             srcToken,
             dstToken,
             amount,
             signer,
-            true,
+            typeof enableEstimate === "boolean" ? enableEstimate : false,
             slippage
         )
 
@@ -47,7 +48,8 @@ export class Sdk {
             dstToken,
             amount,
             signer,
-            slippage
+            slippage,
+            true
         )
 
         return quote.toOrder()
