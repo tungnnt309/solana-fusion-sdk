@@ -52,7 +52,8 @@ export class Quote {
 
     public toOrder(
         presetType = this.recommendedPreset,
-        receiver = this.signer
+        receiver = this.signer,
+        quote?: Quote
     ): FusionOrder {
         const preset = this.presets[presetType]
 
@@ -64,7 +65,8 @@ export class Quote {
                 receiver,
                 srcAmount: this.srcAmount,
                 estimatedDstAmount: this.dstAmount,
-                minDstAmount: preset.auctionEndAmount
+                minDstAmount: preset.auctionEndAmount,
+                quote
             },
             new AuctionDetails({
                 startTime: preset.startAuctionIn + now(),

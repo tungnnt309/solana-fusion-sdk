@@ -1,0 +1,1 @@
+{"version":3,"file":"whitelist-contract.js","sourceRoot":"","sources":["../../../src/contracts/whitelist-contract.ts"],"names":[],"mappings":"AAAA,OAAO,EAAC,OAAO,EAAC,MAAM,YAAY,CAAA;AAElC,MAAM,OAAO,iBAAiB;IAC1B,MAAM,CAAC,OAAO,GAAG,IAAI,OAAO,CAAC,8CAA8C,CAAC,CAAA"}

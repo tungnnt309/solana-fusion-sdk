@@ -1,3 +1,4 @@
+import { Quote } from 'sdk'
 import {Address} from '../domains'
 
 export type OrderInfoData = {
@@ -8,4 +9,5 @@ export type OrderInfoData = {
     receiver: Address
     srcMint: Address
     dstMint: Address
+    quote?: Quote
 }

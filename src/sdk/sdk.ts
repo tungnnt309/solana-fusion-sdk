@@ -4,7 +4,7 @@ import {CancellableOrder} from './cancellable-order'
 import {ActiveOrder} from './active-order'
 import {FusionOrder} from '../fusion-order'
 import {Address, Bps} from '../domains'
-import {ApiConfig, HttpProvider, OrdersApi, Pagination, QuoterApi} from '../api'
+import {ApiConfig, HttpProvider, OrdersApi, Pagination, PresetType, QuoterApi} from '../api'
 
 export class Sdk {
     private readonly ordersApi: OrdersApi
@@ -21,14 +21,15 @@ export class Sdk {
         dstToken: Address,
         amount: bigint,
         signer: Address,
-        slippage?: Bps
+        slippage?: Bps,
+        enableEstimate?: boolean,
     ): Promise<Quote> {
         const quoteRaw = await this.quoterApi.getQuote(
             srcToken,
             dstToken,
             amount,
             signer,
-            true,
+            typeof enableEstimate === "boolean" ? enableEstimate : false,
             slippage
         )
 
@@ -40,17 +41,19 @@ export class Sdk {
         dstToken: Address,
         amount: bigint,
         signer: Address,
-        slippage?: Bps
+        slippage?: Bps,
+        preset?: PresetType
     ): Promise<FusionOrder> {
         const quote = await this.getQuote(
             srcToken,
             dstToken,
             amount,
             signer,
-            slippage
+            slippage,
+            true
         )
 
-        return quote.toOrder()
+        return quote.toOrder(preset, undefined, quote)
     }
 
     public async getOrderStatus(orderHash: string): Promise<OrderStatus> {

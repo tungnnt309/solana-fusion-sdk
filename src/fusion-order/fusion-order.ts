@@ -16,6 +16,7 @@ import {FeeCalculator} from '../amount-calculator/fee-calculator/fee-calculator'
 import {FusionSwapContract, TransactionInstruction} from '../contracts'
 import {getPda, getAta, assertUInteger} from '../utils/'
 import {IDL} from '../idl/fusion-swap'
+import { Quote } from '../sdk/quote'
 
 export class FusionOrder {
     private static DefaultExtra = {
@@ -38,6 +39,7 @@ export class FusionOrder {
         dutchAuctionData: AuctionDetails
         srcMint: Address
         dstMint: Address
+        quote?: Quote
     }
 
     private constructor(
